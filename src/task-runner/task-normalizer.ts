@@ -1,5 +1,7 @@
 import { Task } from './types';
 import { logger } from '../logger';
+import { existsSync } from 'fs';
+import { join } from 'path';
 
 /**
  * Normalize task data from various server response formats
@@ -15,14 +17,35 @@ export function normalizeTask(rawTask: any): Task {
   );
   
   // Determine package manager with fallback to npm
-  // Check buildSpec first, then top-level taskData
+  // Check buildSpec first, then top-level taskData, then detect from project files
   const pmFromSpec = taskData.buildSpec?.packageManager;
+  const pmFromTaskData = taskData.packageManager;
+  
+  // Detect package manager from project files if not explicitly provided
+  let detectedPm: 'npm' | 'pnpm' | 'yarn' | null = null;
+  if (!pmFromSpec && !pmFromTaskData) {
+    // Try to detect from lock files in the project root
+    const projectRoot = process.env.PROJECT_ROOT || '/app';
+    if (existsSync(join(projectRoot, 'pnpm-lock.yaml'))) {
+      detectedPm = 'pnpm';
+      logger.info('Detected pnpm from pnpm-lock.yaml');
+    } else if (existsSync(join(projectRoot, 'yarn.lock'))) {
+      detectedPm = 'yarn';
+      logger.info('Detected yarn from yarn.lock');
+    } else if (existsSync(join(projectRoot, 'package-lock.json'))) {
+      detectedPm = 'npm';
+      logger.info('Detected npm from package-lock.json');
+    } else {
+      logger.warn('No lock file found, defaulting to npm');
+    }
+  }
+  
   const pm: 'npm' | 'pnpm' | 'yarn' =
     pmFromSpec === 'pnpm' || pmFromSpec === 'yarn'
       ? pmFromSpec
-      : taskData.packageManager === 'pnpm' || taskData.packageManager === 'yarn'
-        ? taskData.packageManager
-        : 'npm';
+      : pmFromTaskData === 'pnpm' || pmFromTaskData === 'yarn'
+        ? pmFromTaskData
+        : detectedPm || 'npm';
 
   // Generate package manager specific commands
   const pmInstall =
