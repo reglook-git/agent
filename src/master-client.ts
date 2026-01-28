@@ -79,7 +79,7 @@ export class MasterClient {
     }
   }
 
-  async sendLogs(deploymentId: string, logs: string[]): Promise<void> {
+  async sendLogs(deploymentId: string, logs: Array<{ level: string; message: string; ts?: Date }>): Promise<void> {
     try {
       await this.requestWithRetry(`/agent/deployments/${deploymentId}/logs`, {
         method: 'POST',

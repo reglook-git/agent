@@ -28,7 +28,7 @@ export class DockerClient {
     }
   }
 
-  async buildImage(buildContextDir: string, tag: string): Promise<void> {
+  async buildImage(buildContextDir: string, tag: string, onBuildLog?: (log: string) => void): Promise<void> {
     // Pack entire directory as build context (same as `docker build .`)
     const tarStream = tar.pack(buildContextDir);
 
@@ -44,7 +44,13 @@ export class DockerClient {
         (err: any) => (err ? reject(err) : resolve()),
         (event: any) => {
           // Optional: stream build logs
-          if (event?.stream) logger.info(event.stream.trim());
+          if (event?.stream) {
+            const logLine = event.stream.trim();
+            logger.info(logLine);
+            if (onBuildLog) {
+              onBuildLog(logLine);
+            }
+          }
           if (event?.error) reject(new Error(event.error));
         }
       );

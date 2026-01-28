@@ -28,9 +28,12 @@ export class TaskExecutor {
     try {
       // 1. Create workdir
       await fs.mkdir(workdir, { recursive: true });
+      await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Workdir created', ts: new Date() }]);
       
       // 2. Fetch source
+      await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Fetching source code...', ts: new Date() }]);
       await this.sourceFetcher.fetchSource(source, workdir);
+      await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Source fetched successfully', ts: new Date() }]);
       
       // 3. Generate or use existing Dockerfile
      // 3. Generate or use existing Dockerfile
@@ -47,13 +50,24 @@ await fs.access(path.join(workdir, 'Dockerfile'));
 
       
       // 4. Build Docker image
-await dockerClient.buildImage(workdir, imageTag);
+      await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Building Docker image...', ts: new Date() }]);
+      await dockerClient.buildImage(workdir, imageTag, async (logLine) => {
+        // Send build logs periodically to avoid spam
+        if (logLine.includes('Step ') || logLine.includes('--->') || logLine.includes('Successfully')) {
+          await masterClient.sendLogs(deploymentId, [{ level: 'info', message: logLine, ts: new Date() }]);
+        }
+      });
+      await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Docker image built successfully', ts: new Date() }]);
       
       // 5. Create artifact if requested
       if (artifactPut) {
+        await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Creating deployment artifact...', ts: new Date() }]);
         const success = await this.artifactHandler.createAndUploadArtifact(workdir, artifactPut);
         if (!success) {
           logger.warn('Artifact creation/upload failed, but continuing with deployment');
+          await masterClient.sendLogs(deploymentId, [{ level: 'warn', message: 'Artifact creation failed, continuing deployment', ts: new Date() }]);
+        } else {
+          await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Artifact created successfully', ts: new Date() }]);
         }
       }
       
@@ -84,9 +98,12 @@ await dockerClient.buildImage(workdir, imageTag);
       }
       
       // 8. Run container
+      await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Starting container...', ts: new Date() }]);
       const containerId = await dockerClient.runContainer(imageTag, containerName, envArray, labels);
+      await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Container started successfully', ts: new Date() }]);
       
       // 9. Healthcheck
+      await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Performing healthcheck...', ts: new Date() }]);
       const isHealthy = await this.healthChecker.checkContainerHealth(containerId, healthcheck);
       
       if (isHealthy) {
@@ -100,11 +117,12 @@ await dockerClient.buildImage(workdir, imageTag);
           imageTag,
         });
         
+        await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Deployment completed successfully!', ts: new Date() }]);
         logger.info(`Deployment ${deploymentId} completed successfully`);
       } else {
         // Healthcheck failed
         const logs = await dockerClient.getContainerLogs(containerId);
-        await masterClient.sendLogs(deploymentId, [logs]);
+        await masterClient.sendLogs(deploymentId, [{ level: 'error', message: `Healthcheck failed. Container logs: ${logs}`, ts: new Date() }]);
         await dockerClient.stopContainer(containerId);
         await dockerClient.removeContainer(containerId);
         
@@ -112,6 +130,7 @@ await dockerClient.buildImage(workdir, imageTag);
       }
       
     } catch (error) {
+      await masterClient.sendLogs(deploymentId, [{ level: 'error', message: `Deployment failed: ${(error as Error).message}`, ts: new Date() }]);
       logger.error({ err: error }, `Deployment ${deploymentId} failed`);
       await masterClient.notifyRuntimeFailed(deploymentId, (error as Error).message);
       throw error;
