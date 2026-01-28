@@ -260,6 +260,12 @@ export class TaskExecutor {
       if (Number.isFinite(n) && n > 0) return { port: n, source: 'runtime.port' };
     }
 
+    // If buildSpec has exposePort, use it
+    if (buildSpec?.exposePort != null) {
+      const n = Number(buildSpec.exposePort);
+      if (Number.isFinite(n) && n > 0) return { port: n, source: 'buildSpec.exposePort' };
+    }
+    
     // If buildSpec has port, use it
     if (buildSpec?.port != null) {
       const n = Number(buildSpec.port);
