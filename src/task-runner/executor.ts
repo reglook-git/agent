@@ -117,7 +117,7 @@ export class TaskExecutor {
       const envArray = (envVars ?? []).map((env) => `${env.key}=${env.value}`);
 
       // 7. Resolve port safely (THIS FIXES YOUR CRASH)
-      const resolvedPortInfo = this.resolveExposePort({ runtime, buildSpec });
+      const resolvedPortInfo = this.resolveExposePort({ runtime, buildSpec, framework: task.framework });
       logger.info(
         { deploymentId, ...resolvedPortInfo, runtime, buildSpec },
         'Resolved expose port for routing'
@@ -171,7 +171,14 @@ export class TaskExecutor {
       await masterClient.sendLogs(deploymentId, [
         { level: 'info', message: 'Performing healthcheck...', ts: new Date() },
       ]);
-      const isHealthy = await this.healthChecker.checkContainerHealth(containerId, healthcheck);
+      
+      // Add port information to healthcheck
+      const healthcheckWithPort = {
+        ...healthcheck,
+        port: resolvedPortInfo.port,
+      };
+      
+      const isHealthy = await this.healthChecker.checkContainerHealth(containerId, healthcheckWithPort);
 
       if (isHealthy) {
         // 11. Stop previous containers for the same hostname
@@ -189,13 +196,21 @@ export class TaskExecutor {
         ]);
         logger.info({ deploymentId }, `Deployment completed successfully`);
       } else {
-        const logs = await dockerClient.getContainerLogs(containerId);
+        const logs = await dockerClient.getContainerLogs(containerId, 200);
         await masterClient.sendLogs(deploymentId, [
-          { level: 'error', message: `Healthcheck failed. Container logs: ${logs}`, ts: new Date() },
+          { level: 'error', message: `Healthcheck failed. Container logs (last 200 lines): ${logs}`, ts: new Date() },
         ]);
-
-        await dockerClient.stopContainer(containerId);
-        await dockerClient.removeContainer(containerId);
+        
+        // Check if we should keep failed containers for debugging
+        if (process.env.KEEP_FAILED_CONTAINERS === 'true') {
+          logger.warn(`KEEP_FAILED_CONTAINERS=true, keeping container ${containerId} for debugging`);
+          await masterClient.sendLogs(deploymentId, [
+            { level: 'warn', message: `KEEP_FAILED_CONTAINERS=true, keeping container for debugging. ID: ${containerId}`, ts: new Date() },
+          ]);
+        } else {
+          await dockerClient.stopContainer(containerId);
+          await dockerClient.removeContainer(containerId);
+        }
 
         throw new Error('Healthcheck failed');
       }
@@ -229,8 +244,9 @@ export class TaskExecutor {
   private resolveExposePort(input: {
     runtime: any;
     buildSpec: any;
+    framework?: string;
   }): { port: number; source: string } {
-    const { runtime, buildSpec } = input;
+    const { runtime, buildSpec, framework } = input;
 
     // Try runtime.exposePort
     if (runtime?.exposePort != null) {
@@ -249,8 +265,18 @@ export class TaskExecutor {
       const n = Number(buildSpec.port);
       if (Number.isFinite(n) && n > 0) return { port: n, source: 'buildSpec.port' };
     }
+    
+    // Special handling for Vite framework - defaults to 4173 for preview
+    if (framework === 'vite') {
+      return { port: 4173, source: 'framework(vite-default)' };
+    }
+    
+    // Special handling for Astro framework - defaults to 4173 for preview
+    if (framework === 'astro') {
+      return { port: 4173, source: 'framework(astro-default)' };
+    }
 
-    // Hard fallback (good for Vite preview defaults in your platform)
+    // Hard fallback
     return { port: 3000, source: 'default(3000)' };
   }
 

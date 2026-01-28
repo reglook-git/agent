@@ -2,7 +2,8 @@ import { dockerClient } from './docker';
 import { logger } from '../logger';
 
 export class HealthChecker {
-  async checkContainerHealth(containerId: string, healthcheck: { path: string; timeoutMs: number }): Promise<boolean> {
+  async checkContainerHealth(containerId: string, healthcheck: { path: string; timeoutMs: number; port?: number }): Promise<boolean> {
+    const port = healthcheck.port ?? 3000; // Default to 3000 if not specified
     const startTime = Date.now();
     
     while (Date.now() - startTime < healthcheck.timeoutMs) {
@@ -14,11 +15,11 @@ export class HealthChecker {
         '-q',
         '--spider',
         '--timeout=3',
-        `http://localhost:3000${healthcheck.path}`,
+        `http://localhost:${port}${healthcheck.path}`,
       ]);
       
       if (wgetResult.success) {
-        logger.info('Healthcheck passed (wget method)');
+        logger.info(`Healthcheck passed on port ${port} (wget method)`);
         return true;
       }
       
@@ -29,11 +30,11 @@ export class HealthChecker {
         '--silent',
         '--show-error',
         '--connect-timeout', '3',
-        `http://localhost:3000${healthcheck.path}`,
+        `http://localhost:${port}${healthcheck.path}`,
       ]);
       
       if (curlResult.success) {
-        logger.info('Healthcheck passed (curl method)');
+        logger.info(`Healthcheck passed on port ${port} (curl method)`);
         return true;
       }
       
@@ -42,11 +43,11 @@ export class HealthChecker {
         'nc',
         '-z',
         'localhost',
-        '3000',
+        String(port),
       ]);
       
       if (ncResult.success) {
-        logger.info('Healthcheck passed (port check method)');
+        logger.info(`Healthcheck passed on port ${port} (port check method)`);
         return true;
       }
       
