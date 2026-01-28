@@ -75,8 +75,25 @@ export function normalizeTask(rawTask: any): Task {
     start: defaultStart,
   };
 
+  
   // Merge with server-provided buildSpec
-  const serverBuildSpec = taskData.buildSpec ?? {};
+  let serverBuildSpec: any = taskData.buildSpec ?? {};
+
+  if (typeof serverBuildSpec === "string") {
+    // Try JSON parse; if it fails, ignore it
+    try {
+      serverBuildSpec = JSON.parse(serverBuildSpec);
+    } catch {
+      logger.warn("buildSpec was a string (not JSON); ignoring it");
+      serverBuildSpec = {};
+    }
+  }
+
+  if (serverBuildSpec == null || typeof serverBuildSpec !== "object" || Array.isArray(serverBuildSpec)) {
+    logger.warn("buildSpec was not an object; ignoring it");
+    serverBuildSpec = {};
+  }
+
   const buildSpec = {
     ...defaultBuildSpec,
     ...serverBuildSpec,
@@ -95,11 +112,15 @@ export function normalizeTask(rawTask: any): Task {
     logger.info(`Partial buildSpec received; filling missing fields with ${pm} defaults`);
   }
   
-  // Normalize healthcheck with fallbacks
-  const healthcheck = taskData.healthcheck ?? {
-    path: "/",
-    timeoutMs: 20000,
-  };
+  // Normalize healthcheck with fallbacks (fill missing fields too)
+const rawHc = taskData.healthcheck ?? {};
+
+const healthcheck = {
+  path: typeof rawHc.path === "string" ? rawHc.path : "/",
+  timeoutMs: Number.isFinite(Number(rawHc.timeoutMs)) && Number(rawHc.timeoutMs) > 0
+    ? Number(rawHc.timeoutMs)
+    : 20000,
+};
   
   // Normalize runtime with fallbacks
   const runtime = taskData.runtime ?? {

@@ -107,7 +107,7 @@ export class DockerClient {
         stderr: true,
         tail: tail || 100,
       });
-      return logs.toString();
+      return logs.toString("utf8").replace(/\u0000/g, "");
     } catch (error) {
       logger.error(`Failed to get logs for container ${containerId}:`, error);
       return '';
