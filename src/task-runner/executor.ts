@@ -36,7 +36,6 @@ export class TaskExecutor {
       await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Source fetched successfully', ts: new Date() }]);
       
       // 3. Generate or use existing Dockerfile
-     // 3. Generate or use existing Dockerfile
 let dockerfilePath: string;
 if (await this.dockerfileGenerator.hasDockerfile(workdir)) {
   dockerfilePath = path.join(workdir, 'Dockerfile');
@@ -70,7 +69,7 @@ await fs.access(path.join(workdir, 'Dockerfile'));
           await masterClient.sendLogs(deploymentId, [{ level: 'info', message: 'Artifact created successfully', ts: new Date() }]);
         }
       }
-      
+
       // 6. Prepare environment variables
       const envArray = envVars.map(env => `${env.key}=${env.value}`);
       

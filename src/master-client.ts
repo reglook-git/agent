@@ -79,11 +79,17 @@ export class MasterClient {
     }
   }
 
-  async sendLogs(deploymentId: string, logs: Array<{ level: string; message: string; ts?: Date }>): Promise<void> {
+  async sendLogs(deploymentId: string, logs: Array<{ level: string; message: string; ts?: string | Date }>): Promise<void> {
     try {
+      // Convert any Date objects to ISO strings
+      const processedLogs = logs.map(log => ({
+        ...log,
+        ts: log.ts instanceof Date ? log.ts.toISOString() : log.ts
+      }));
+      
       await this.requestWithRetry(`/agent/deployments/${deploymentId}/logs`, {
         method: 'POST',
-        body: JSON.stringify({ logs }),
+        body: JSON.stringify({ logs: processedLogs }),
       });
       logger.debug(`Logs sent for deployment ${deploymentId}`);
     } catch (error) {
