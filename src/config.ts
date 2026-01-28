@@ -19,6 +19,7 @@ const configSchema = z.object({
   MAX_CONCURRENT_RUNTIMES: z.number().int().positive().default(50),
   BUILD_TIMEOUT_MS: z.number().int().positive().default(900000),
   HEALTHCHECK_TIMEOUT_MS: z.number().int().positive().default(20000),
+  KEEP_WORKDIR: z.boolean().default(false),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -40,6 +41,7 @@ try {
     MAX_CONCURRENT_RUNTIMES: parseInt(process.env.MAX_CONCURRENT_RUNTIMES || '50', 10),
     BUILD_TIMEOUT_MS: parseInt(process.env.BUILD_TIMEOUT_MS || '900000', 10),
     HEALTHCHECK_TIMEOUT_MS: parseInt(process.env.HEALTHCHECK_TIMEOUT_MS || '20000', 10),
+    KEEP_WORKDIR: process.env.KEEP_WORKDIR === 'true',
   });
 } catch (error) {
   if (error instanceof z.ZodError) {

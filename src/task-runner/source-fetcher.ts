@@ -48,6 +48,8 @@ export class SourceFetcher {
         throw new Error(`Unsupported source file type: ${filename}`);
       }
 
+      logger.info({ extractDir: workdir }, "Extraction done, determining project root...");
+
       // Clean up the downloaded archive
       await fs.unlink(filepath);
       logger.info('Source extraction completed');

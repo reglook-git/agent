@@ -105,16 +105,20 @@ export class TaskExecutor {
       }
       
     } catch (error) {
-      logger.error(`Deployment ${deploymentId} failed:`, error);
+      logger.error({ err: error }, `Deployment ${deploymentId} failed`);
       await masterClient.notifyRuntimeFailed(deploymentId, (error as Error).message);
       throw error;
     } finally {
       // Clean up workdir
-      try {
-        await fs.rm(workdir, { recursive: true, force: true });
-        logger.info(`Workdir ${workdir} cleaned up`);
-      } catch (error) {
-        logger.warn(`Failed to clean up workdir ${workdir}:`, error);
+      if (config.KEEP_WORKDIR) {
+        logger.warn("KEEP_WORKDIR=true; skipping cleanup");
+      } else {
+        try {
+          await fs.rm(workdir, { recursive: true, force: true });
+          logger.info(`Workdir ${workdir} cleaned up`);
+        } catch (error) {
+          logger.warn(`Failed to clean up workdir ${workdir}:`, error);
+        }
       }
     }
   }
