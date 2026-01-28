@@ -1,0 +1,39 @@
+{
+  "name": "airnode-agent",
+  "version": "1.0.0",
+  "description": "Airnode Agent for deployment orchestration",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev src/index.ts",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "airnode",
+    "deployment",
+    "docker",
+    "traefik"
+  ],
+  "author": "Reglook",
+  "license": "MIT",
+  "dependencies": {
+    "@types/dotenv": "^6.1.1",
+    "adm-zip": "^0.5.0",
+    "dockerode": "^3.3.0",
+    "dotenv": "^17.2.3",
+    "pino": "^8.0.0",
+    "tar": "^6.0.0",
+    "undici": "^6.0.0",
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.0",
+    "@types/dockerode": "^3.3.0",
+    "@types/node": "^20.0.0",
+    "@types/tar": "^6.0.0",
+    "rimraf": "^5.0.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0"
+  }
+}
