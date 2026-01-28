@@ -3,6 +3,7 @@ import { Task } from './types';
 import { TaskExecutor } from './executor';
 import { config } from '../config';
 import { logger } from '../logger';
+import { normalizeTask } from './task-normalizer';
 
 export class TaskPoller {
   private executor = new TaskExecutor();
@@ -23,10 +24,19 @@ export class TaskPoller {
         if (this.activeBuilds < config.MAX_CONCURRENT_BUILDS) {
           const tasks = await masterClient.pollTasks();
           
-          for (const task of tasks) {
+          for (const rawTask of tasks) {
             if (this.activeBuilds >= config.MAX_CONCURRENT_BUILDS) {
               break;
             }
+            
+            // Log raw task structure for debugging
+            logger.debug({ rawTask }, 'Received raw task from server');
+            
+            // Normalize task structure to handle both flat and nested payload formats
+            const task = normalizeTask(rawTask);
+            
+            // Log normalized task structure
+            logger.debug({ normalizedTask: task }, 'Normalized task structure');
             
             this.activeBuilds++;
             this.processTask(task)
