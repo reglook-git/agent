@@ -33,16 +33,21 @@ export class TaskExecutor {
       await this.sourceFetcher.fetchSource(source, workdir);
       
       // 3. Generate or use existing Dockerfile
-      let dockerfilePath: string;
-      if (await this.dockerfileGenerator.hasDockerfile(workdir)) {
-        dockerfilePath = path.join(workdir, 'Dockerfile');
-        logger.info('Using existing Dockerfile');
-      } else {
-        dockerfilePath = await this.dockerfileGenerator.generateDockerfile(workdir, buildSpec);
-      }
+     // 3. Generate or use existing Dockerfile
+let dockerfilePath: string;
+if (await this.dockerfileGenerator.hasDockerfile(workdir)) {
+  dockerfilePath = path.join(workdir, 'Dockerfile');
+  logger.info('Using existing Dockerfile');
+} else {
+  dockerfilePath = await this.dockerfileGenerator.generateDockerfile(workdir, buildSpec);
+}
+
+// ✅ Ensure Dockerfile really exists (fail fast if not)
+await fs.access(path.join(workdir, 'Dockerfile'));
+
       
       // 4. Build Docker image
-      await dockerClient.buildImage(workdir, 'Dockerfile', imageTag);
+await dockerClient.buildImage(workdir, imageTag);
       
       // 5. Create artifact if requested
       if (artifactPut) {

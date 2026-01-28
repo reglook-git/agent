@@ -18,7 +18,7 @@ RUN ${buildSpec.build}
 
 EXPOSE ${buildSpec.exposePort}
 
-CMD ["${buildSpec.start}"]
+CMD ["sh","-c","${buildSpec.start}"]
 `;
 
     await fs.writeFile(dockerfilePath, dockerfileContent);

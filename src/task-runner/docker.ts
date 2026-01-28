@@ -1,6 +1,7 @@
 import Docker from 'dockerode';
 import { config } from '../config';
 import { logger } from '../logger';
+import tar from 'tar-fs';
 
 export class DockerClient {
   private docker: Docker;
@@ -27,27 +28,31 @@ export class DockerClient {
     }
   }
 
-  async buildImage(buildContext: string, dockerfile: string, tag: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.docker.buildImage(
-        {
-          context: buildContext,
-          src: [dockerfile],
-        },
-        { t: tag }
-      )
-        .then(stream => {
-          this.docker.modem.followProgress(stream, (err, res) => {
-            if (err) {
-              reject(err);
-            } else {
-              logger.info(`Image ${tag} built successfully`);
-              resolve();
-            }
-          });
-        })
-        .catch(reject);
+  async buildImage(buildContextDir: string, tag: string): Promise<void> {
+    // Pack entire directory as build context (same as `docker build .`)
+    const tarStream = tar.pack(buildContextDir);
+
+    const stream = await this.docker.buildImage(tarStream, {
+      t: tag,
+      pull: true,
+      forcerm: true,
     });
+
+    await new Promise<void>((resolve, reject) => {
+      this.docker.modem.followProgress(
+        stream,
+        (err: any) => (err ? reject(err) : resolve()),
+        (event: any) => {
+          // Optional: stream build logs
+          if (event?.stream) logger.info(event.stream.trim());
+          if (event?.error) reject(new Error(event.error));
+        }
+      );
+    });
+
+    // Hard guarantee: image exists
+    await this.docker.getImage(tag).inspect();
+    logger.info(`Image ${tag} built successfully`);
   }
 
   async runContainer(image: string, containerName: string, envVars: string[], labels: Record<string, string>): Promise<string> {
