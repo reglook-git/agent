@@ -4,6 +4,8 @@ export interface Task {
   deploymentId: string;
   hostname: string;
   depsHash: string;
+  packageManager?: 'npm' | 'pnpm' | 'yarn';
+  framework?: string;
   source: {
     mode: 'upload' | 'r2';
     downloadUrl?: string;
@@ -32,6 +34,7 @@ export interface Task {
     build: string;
     start: string;
     workdir: string;
+    exposePort: number;
   };
   healthcheck: {
     path: string;
