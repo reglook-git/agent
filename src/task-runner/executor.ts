@@ -75,6 +75,8 @@ await dockerClient.buildImage(workdir, imageTag);
         [`traefik.http.routers.${routerKey}.priority`]: timestamp.toString(),
         [`traefik.http.services.${serviceKey}.loadbalancer.server.port`]: runtime.exposePort.toString(),
         [`traefik.http.routers.${routerKey}.service`]: serviceKey,
+        // Explicitly set Docker network for Traefik service discovery
+        [`traefik.docker.network`]: config.DOCKER_NETWORK,
       };
       
       if (config.TRAEFIK_TLS) {
