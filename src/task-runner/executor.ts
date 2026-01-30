@@ -156,6 +156,7 @@ export class TaskExecutor {
 
       if (config.TRAEFIK_TLS) {
         labels[`traefik.http.routers.${routerKey}.tls`] = 'true';
+        labels[`traefik.http.routers.${routerKey}.tls.certresolver`] = 'le';
       }
 
       // 9. Run container
